@@ -16,14 +16,16 @@ const ( //ideally these shall be read as parameters
 	network      = "tcp"
 	address      = "localhost"
 	debug        = 0
+	kick_Client  = working_day - 1
 )
 
 func main() {
 	quit := make(chan bool)
 	go server(quit) //runs server until server says "enough"
-	for i := 0; i <= 2*working_day; i++ {
-		go client(address, "topo"+strconv.Itoa(i))
+	for i := 0; i < working_day-1; i++ {
+		go client(address, "topo"+strconv.Itoa(i+1), false)
 	}
+	go client(address, "topo"+strconv.Itoa(working_day), true)
 	<-quit
 	log.Println("My working day is over")
 }
