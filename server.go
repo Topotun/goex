@@ -18,7 +18,7 @@ type client_handle struct {
 }
 type list_message struct {
 	a       *client_handle
-	proceed chan bool
+	proceed chan *list.Element
 }
 
 func read_client(c net.Conn, out_chan chan uint64) {
@@ -77,7 +77,7 @@ func handle(c *client_handle, counter int, q chan bool) {
 	defer func() { //Finalization
 		err = c.conn.Close() //Closes connection as it is handled, no more reading/writing
 		if nil != err {
-			log.Panicln("Error in closing connection! Reason:", err)
+			log.Println("Error in closing connection! Reason:", err)
 		}
 		rec := recover()
 		if nil != rec {
@@ -129,31 +129,37 @@ func server(quit chan bool) {
 	defer ln.Close()
 	client_list := list.New()
 	client_channel := make(chan list_message) //channel that receives updates on client list
+	can_kick_ch := make(chan bool)            //signals server we have a sufficiently long list of clients
 	go func() {
 		/*this anonymous go routine is a client list updater
 		whenever it receives a message that list update has to be made, it blocks
 		a start of corresponding handle() call until its job is done*/
+		i := 0
 		for {
 			msg := <-client_channel
-			client_list.PushBack(msg.a)
-			msg.proceed <- true
+			element := client_list.PushBack(msg.a)
+			msg.proceed <- element
+			if i == kick_Client {
+				can_kick_ch <- true
+			}
+			i++
+		}
+	}()
+	ticker := time.NewTicker(5 * time.Second)
+	go func() {
+		for {
+			select { //if some process has finished we note that
+			case <-ticker.C:
+				if online < 1 {
+					timeout <- true
+					ticker.Stop()
+				}
+			case <-q:
+				online--
+			}
 		}
 	}()
 	for i := 0; i < working_day; i++ { //if there are people to serve OR too few clients have been served
-		ticker := time.NewTicker(5 * time.Second)
-		go func() {
-			for {
-				select { //if some process has finished we note that
-				case <-ticker.C:
-					if online < 1 {
-						timeout <- true
-						ticker.Stop()
-					}
-				case <-q:
-					online--
-				}
-			}
-		}()
 		go func() { //parallel accepts/handles
 			conn, err := ln.Accept()
 			count++
@@ -161,17 +167,45 @@ func server(quit chan bool) {
 				log.Println(err)
 			} else {
 				online++                                                    //number of online processes is increased
-				proceed := make(chan bool, 1)                               //this line will signal us to proceed once the list of clients is updated
+				proceed := make(chan *list.Element, 1)                      //this line will signal us to proceed once the list of clients is updated
 				new_client_handle := client_handle{"None", conn}            //this line is necessary to alter name later in handle() method. somewhat artificial, we don't want to misuse memory so much..
 				client_channel <- list_message{&new_client_handle, proceed} //this line signals client list updater to make changes
-				<-proceed                                                   //wait until the necessary list update is done
+				element := <-proceed                                        //wait until the necessary list update is done
 				handle(&new_client_handle, count, q)
+				client_list.Remove(element) //as soon as handle stops we remove client from list
 			}
 		}()
 	}
-	<-timeout
+	<-can_kick_ch
 	fmt.Println("My clients for today were")
 	print_list(client_list)
 	fmt.Println("-------------------------")
+	if kick_Client > 0 {
+		i := 0
+		e := client_list.Front()
+		for ; i < kick_Client; e = e.Next() { //removes kick_Client# client from the list and terminates its connection
+			if nil == e {
+				break
+			}
+			if i == kick_Client {
+				client_list.Remove(e)
+				break
+			}
+			i++
+		}
+		if nil != e { //if we found the client handle
+			a_handle, ok := e.Value.(*client_handle)
+			if ok {
+				log.Println("I had enough of client", a_handle.name)
+				a_handle.conn.Close()
+			} else {
+				log.Println("Error: invalid client handle in the list, entry", i)
+			}
+		}
+	}
+	fmt.Println("Now I have only these clients")
+	print_list(client_list)
+	fmt.Println("-------------------------")
+	<-timeout
 	quit <- true
 }
