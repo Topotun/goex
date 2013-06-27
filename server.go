@@ -145,19 +145,21 @@ func server(quit chan bool) {
 			i++
 		}
 	}()
-	ticker := time.NewTicker(5 * time.Second)
+
 	go func() {
+		ticker := time.NewTicker(5 * time.Second)
 		for {
 			select { //if some process has finished we note that
 			case <-ticker.C:
 				if online < 1 {
 					timeout <- true
-					ticker.Stop()
+					break
 				}
 			case <-q:
 				online--
 			}
 		}
+		defer ticker.Stop()
 	}()
 	for i := 0; i < working_day; i++ { //if there are people to serve OR too few clients have been served
 		go func() { //parallel accepts/handles
@@ -176,7 +178,7 @@ func server(quit chan bool) {
 			}
 		}()
 	}
-	<-can_kick_ch
+	<-can_kick_ch //I have many clients, last can be kicked
 	fmt.Println("My clients for today were")
 	print_list(client_list)
 	fmt.Println("-------------------------")
