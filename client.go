@@ -46,11 +46,14 @@ func client(addr, name string, hangie bool) {
 				log.Println("Failed to write to server")
 				continue //we hope to recover in the future
 			}
+		}
+		for j := 0; j < 2*max_requests; j++ {
 			_, err = read_deadline(conn, waiting_time, buffer)
 			if nil != err {
-				log.Println("Failed to read from server")
+				log.Println("This is", name, "Failed to read from server on", j, "attempt")
 				continue //we hope to recover in the future
 			}
+			var number uint64
 			number, succ = binary.Uvarint(buffer)
 			if succ < 1 {
 				fmt.Println("My name is", name, "I failed to get a sensible answer from server on attempt", j, "!")
@@ -60,7 +63,7 @@ func client(addr, name string, hangie bool) {
 		}
 	} else { //terrible client, deserving to be dropped
 		for {
-			fmt.Println("My name is", name, "I am trying to hang the server")
+			//fmt.Println("My name is", name, "I am trying to hang the server")
 			time.Sleep(time.Second)
 		}
 	}

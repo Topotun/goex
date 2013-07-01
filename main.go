@@ -25,7 +25,7 @@ func main() {
 	for i := 0; i < working_day-1; i++ {
 		go client(address, "topo"+strconv.Itoa(i+1), false)
 	}
-	go client(address, "topo"+strconv.Itoa(working_day), true)
+	//go client(address, "topo"+strconv.Itoa(working_day), true)
 	<-quit
 	log.Println("My working day is over")
 }

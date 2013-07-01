@@ -7,6 +7,19 @@ import (
 	"time"
 )
 
+func inc_counter(count int, block_ch chan bool) { //this simple function introduces thread safe increasing of a variable in a semaphore-style
+	<-block_ch //wait while others work with counter
+	count++
+	block_ch <- true //unblock the channel, letting others to increase the counter
+}
+
+func dec_counter(count int, block_ch chan bool) { //decrease counterpart to inc_counter
+	<-block_ch
+	count--
+	block_ch <- true
+
+}
+
 func read_deadline(c net.Conn, t_dur time.Duration, buffer []byte) (bytes_read int, err error) {
 	/*Implements read with specified duration t_dur
 	If duration ends, read will fail.*/
