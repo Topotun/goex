@@ -20,9 +20,11 @@ type list_message struct {
 }
 
 func print_list(l *list.List) {
+	fmt.Println("---------")
 	for e := l.Front(); nil != e; e = e.Next() {
 		fmt.Println(e.Value)
 	}
+	fmt.Println("---------")
 }
 
 func control_list(client_ch chan list_message, kick_ch chan bool) {
@@ -31,7 +33,7 @@ func control_list(client_ch chan list_message, kick_ch chan bool) {
 	a start of corresponding handle() call until its job is done.
 	When time comes, it also deletes client from the list.*/
 	i := 0 //artificial counter, related to artificial block
-	client_map := make(map[client_handle]*list.Element)
+	client_map := make(map[net.Conn]*list.Element)
 	client_list := list.New()
 	for {
 		msg := <-client_ch
@@ -43,8 +45,8 @@ func control_list(client_ch chan list_message, kick_ch chan bool) {
 				return
 			}
 			element := client_list.PushBack(msg.a)
-			client_map[*msg.a] = element
-			log.Println("Adding client", msg.a.name, "to list, pointer", element)
+			client_map[msg.a.conn] = element
+			log.Println("Adding client", msg.a.name, "to list, pointer", *element)
 			/*artificial block for counting clients
 			shall be removed ASAP*/
 			msg.proceed <- true
@@ -59,7 +61,7 @@ func control_list(client_ch chan list_message, kick_ch chan bool) {
 				log.Println("Null pointer client handle passed, unable to make exclusion from list")
 				return
 			}
-			element := client_map[*msg.a]
+			element := client_map[msg.a.conn]
 			if nil == element {
 				log.Println("Client", msg.a.name, "is already gone and cannot be removed")
 			} else {

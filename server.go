@@ -119,8 +119,8 @@ func server(quit chan bool) {
 	}
 	defer ln.Close()
 
-	client_channel := make(chan list_message) //channel that receives updates on client list
-	can_kick_ch := make(chan bool)            //signals server we have a sufficiently long list of clients
+	client_channel := make(chan list_message, 1) //channel that receives updates on client list
+	can_kick_ch := make(chan bool, 1)            //signals server we have a sufficiently long list of clients
 
 	go control_list(client_channel, can_kick_ch)
 
@@ -165,39 +165,6 @@ func server(quit chan bool) {
 			}
 		}()
 	}
-	//<-can_kick_ch //I have many clients, last can be kicked
-	//client_channel <- list_message{nil, nil, 3}
-	/*proceed := make(chan bool)
-	for nil == last_client {
-		time.Sleep(time.Second)
-	}
-	client_channel <- list_message{last_client, proceed, 2}
-	<-proceed*/
-	/*
-		if kick_Client > 0 {
-			i := 0
-			e := client_list.Front()
-			for ; i < kick_Client; e = e.Next() { //removes kick_Client# client from the list and terminates its connection
-				if nil == e {
-					break
-				}
-				if i == kick_Client {
-					client_list.Remove(e)
-					break
-				}
-				i++
-			}
-			if nil != e { //if we found the client handle
-				a_handle, ok := e.Value.(*client_handle)
-				if ok {
-					log.Println("I had enough of client", a_handle.name)
-					a_handle.conn.Close()
-				} else {
-					log.Println("Error: invalid client handle in the list, entry", i)
-				}
-			}
-		}*/
-	//client_channel <- list_message{nil, nil, 3}
 	<-timeout
 	quit <- true
 }
